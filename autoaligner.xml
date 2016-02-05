@@ -1,0 +1,73 @@
+<project name="Autoaligner" basedir="." default="main">
+    <taskdef resource="net/sf/antcontrib/antcontrib.properties"/>  
+	
+	<property file="autoaligner.properties"/>
+	<property environment="env"/>
+	
+	<target name="clean">
+		<delete dir="${release.base.dir}"/>
+	</target>
+
+	
+	<target name="master-jar" description="creates the master jar file with all code" depends="clean">
+		<!-- Copy base class files to the build directory -->
+		<!-- <echo>Unpacking base classes</echo>
+		<copy file="Misc/external.zip" todir="${release.build.dir}"/>
+		<unzip src="${release.build.dir}/external.zip" dest="${release.build.dir}"/>
+		<move todir="${release.build.dir}">
+			<fileset dir="${release.build.dir}/external"/>
+		</move>
+			
+		<delete dir="${release.build.dir}/external"/>
+		<delete file="${release.build.dir}/external.zip"/>
+		-->
+		
+		<!-- Copy Driver -->
+		<macrodef name="copy-class">
+			<attribute name="jarpath"/>
+			<sequential>
+				<!-- <mkdir dir="${release.build.dir}/@{jarpath}"/> -->
+				<copy todir="${release.build.dir}/@{jarpath}">
+					<fileset dir="${classes.dir}/@{jarpath}">
+						<include name="**/*class"/>
+						<include name="**/*properties"/>
+					</fileset>
+				</copy>
+			
+			</sequential>
+		</macrodef>
+		
+		<!-- Load in jar names and copy them to the build directory -->
+		<echo>Copying class files</echo>
+				
+		<for list="${class.select}" param="jar.location">
+			<sequential>
+				<copy-class jarpath="@{jar.location}"/>
+			</sequential>
+		</for>
+		
+		
+		<!-- Build the jar -->
+		<jar destfile="${release.base.dir}/autoaligner.jar" basedir="${release.build.dir}" compress="false">
+			<zipgroupfileset dir="Misc" includes="*.jar" />
+			<manifest>
+			    <attribute name="Main-Class" value="autoaligner/Autoaligner"/>
+				<attribute name="Manifest-Version" value="1.0"/>
+				<attribute name="Implementation-Vendor" value="Implementation-Vendor: University of Utah Bioinformatics Shared Resource (http://bioserver.hci.utah.edu)"/>
+				<attribute name="Implementation-Version" value="${release_name}"/>
+			</manifest>
+		</jar>
+		
+		<!-- Clean up build directory -->
+		<delete dir="${release.build.dir}"/>
+				
+	</target>
+	
+					
+	
+	
+	<target name="main" depends="master-jar"/>
+	
+				
+	
+</project>

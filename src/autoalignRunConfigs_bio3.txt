@@ -1,0 +1,5 @@
+novoindexNames=/home/sbsuser/Pipeline/AutoAlignReport/reports/autoAlignerData/novoindexNameTable.txt
+parsedReports=/home/sbsuser/Pipeline/AutoAlignReport/reports/processedReports/
+tomatoJobDir=/tomato/dev/job/autoaligner/alignments/
+logDir=/home/sbsuser/Pipeline/AutoAlignReport/reports/logs/
+createAnalysisMain=/home/sbsuser/Pipeline/AutoAlignReport/reports/autoAlignerData/
