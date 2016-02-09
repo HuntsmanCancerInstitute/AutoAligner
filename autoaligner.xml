@@ -10,18 +10,6 @@
 
 	
 	<target name="master-jar" description="creates the master jar file with all code" depends="clean">
-		<!-- Copy base class files to the build directory -->
-		<!-- <echo>Unpacking base classes</echo>
-		<copy file="Misc/external.zip" todir="${release.build.dir}"/>
-		<unzip src="${release.build.dir}/external.zip" dest="${release.build.dir}"/>
-		<move todir="${release.build.dir}">
-			<fileset dir="${release.build.dir}/external"/>
-		</move>
-			
-		<delete dir="${release.build.dir}/external"/>
-		<delete file="${release.build.dir}/external.zip"/>
-		-->
-		
 		<!-- Copy Driver -->
 		<macrodef name="copy-class">
 			<attribute name="jarpath"/>
@@ -37,6 +25,8 @@
 			</sequential>
 		</macrodef>
 		
+		
+		
 		<!-- Load in jar names and copy them to the build directory -->
 		<echo>Copying class files</echo>
 				
@@ -49,7 +39,7 @@
 		
 		<!-- Build the jar -->
 		<jar destfile="${release.base.dir}/autoaligner.jar" basedir="${release.build.dir}" compress="false">
-			<zipgroupfileset dir="Misc" includes="*.jar" />
+			<zipgroupfileset dir="ExternalJars" includes="*.jar" />
 			<manifest>
 			    <attribute name="Main-Class" value="autoaligner/Autoaligner"/>
 				<attribute name="Manifest-Version" value="1.0"/>
@@ -60,6 +50,11 @@
 		
 		<!-- Clean up build directory -->
 		<delete dir="${release.build.dir}"/>
+		
+		<!-- Copy data files -->
+		<copy todir="${release.base.dir}">
+			<fileset dir="${data.dir}"/>
+		</copy>
 				
 	</target>
 	
