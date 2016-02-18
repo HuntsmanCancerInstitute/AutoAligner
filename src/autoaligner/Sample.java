@@ -90,6 +90,7 @@ public class Sample {
 	private boolean adaptersIncluded = false;
 	private boolean knownSeqAppCode = false;
 	private boolean align = true;
+	private boolean knownMethod = false;
 	
 	//constructor
 	public Sample(String[] dataValue) {
@@ -151,6 +152,14 @@ public class Sample {
 
 	public void setRNASeq(boolean isRNASeq) {
 		this.isRNASeq = isRNASeq;
+	}
+	
+	public boolean isKnownMethod() {
+		return knownMethod;
+	}
+	
+	public void setKnownMethod(boolean knownMethod) {
+		this.knownMethod = knownMethod;
 	}
 
 	public boolean isChIPSeq() {

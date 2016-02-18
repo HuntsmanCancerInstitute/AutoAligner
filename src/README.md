@@ -3,9 +3,6 @@
 **Code does not include gnomex_httpclient.properties, which is necessary to interact with the GNomEx DB. I have this if you need it. It contains admin
 login info for creating new experiment-linked analysis reports.**
 
-
-This README would normally document whatever steps are necessary to get your application up and running.
-
 ### What is this repository for? ###
 
 * Quick summary
@@ -14,12 +11,9 @@ This README would normally document whatever steps are necessary to get your app
 
 ### How do I get set up? ###
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+* The java code was compiled with java 1.8
+* Use "-Dbuild.compiler=javac1.7" in ant build configurations with eclipse
+* The gnomex_httpclient.properties file is on the HCI bioinformatics shard resource page and is   required.
 
 ### Contribution guidelines ###
 
@@ -29,4 +23,4 @@ This README would normally document whatever steps are necessary to get your app
 
 ### Who do I talk to? ###
 
-Contact Darren Ames (darren.ames@hci.utah.edu) with any questions or comments. 
+* Contact Tim Mosbruger at <Brett.Milash@hci.utah.edu> if you have any questions

@@ -28,10 +28,11 @@ import autoaligner.Misc;
  */
 
 public class Autoaligner {
-
+	
+	static boolean testCase = false;
 	//fields
 	private String analysisNumber;
-	private String myEmail = "tim.mosbruger@hci.utah.edu"; 
+	private String myEmail; 
 	private String autoalignReport = null;
 	private String novoindexNames = null;
 	private String parsedReports = null;
@@ -64,9 +65,18 @@ public class Autoaligner {
 			printDocs();
 			System.exit(0);
 		}
-		Autoaligner a = new Autoaligner(args);
+			Autoaligner a = new Autoaligner(args);
+			if (testCase){
+			a.testParseFreshDataReport();
+			a.closeLogger();
+
+		}
+		else {
+
 		a.parseFreshDataReport();
 		a.closeLogger();
+		}
+
 	}
 
 	public void closeLogger() { 
@@ -224,7 +234,6 @@ public class Autoaligner {
 
 				//if paired-end
 				if (s.getSingleOrPairedEnd().toString().equals("Paired-end")) {
-
 					s.setPairedEnd(true);
 
 					//split on comma
@@ -267,7 +276,6 @@ public class Autoaligner {
 					//call downstream methods to match samples with the correct novoindex
 					this.setCondSeqAppCode(s);
 				}
-
 				//check for matching novoindex for the sample before creating new analysis report 
 				if (!(s.getNovoindex() == null)) {
 					//get new analysis report number for samples that have a matching novoindex
@@ -292,6 +300,120 @@ public class Autoaligner {
 				//print logs for each sample
 				this.printLogs(s);
 				this.createCmdFile(s);
+			}
+		}
+		//close the reader
+		br.close();
+
+		//move fresh data report to processedReports dir
+		File ar = new File(autoalignReport);
+		boolean success = ar.renameTo(new File(parsedReports, ar.getName()));
+		if (!success) {
+			//write to log file
+			logFile.writeInfoMessage("Problem moving parsed fresh data report "
+					+ autoalignReport.toString());
+		}
+	}
+	
+	
+	public void testParseFreshDataReport() throws Exception {
+
+		//load novoindex hash
+		genomeIndex = loadNovoindexList();
+		//create buffered reader to read fresh data report
+		BufferedReader br = new BufferedReader(new FileReader(autoalignReport));
+		String line;
+		//skip first line in file
+		br.readLine();
+		//make hashmap
+		HashMap<String,String> hm = new HashMap<String,String>();
+
+		//loop the read block until all lines in the file are read
+		while ((line = br.readLine()) != null) {
+
+			//split contents of tab-delimited file 
+			String dataValue[] = line.split("\t");
+
+			//check for correct number of columns in fresh data report
+			if (dataValue.length < 18) {
+				//continue;
+			}
+			else {
+				Sample s = new Sample(dataValue);
+
+				//catch B37 genome if specified
+				if (s.getGenome().toString().equals("H_sapiens_Jun_2003")) {
+					s.setGenome("hg19; H_sapiens_Feb_2009; GRCh37");
+				}
+
+				//if paired-end
+				if (s.getSingleOrPairedEnd().toString().equals("Paired-end")) {
+					s.setPairedEnd(true);
+
+					//split on comma
+					String[] pairedFiles = s.getFastqFilePath().split(",");
+
+					//set file paths
+					s.setFastqFilePath1(pairedFiles[0]);
+					String f1 = pairedFiles[0].toString();
+					s.setFastqFile1(f1);
+					s.setFastqFilePath2(pairedFiles[1]);
+					String f2 = pairedFiles[1].toString();
+					s.setFastqFile2(f2);
+				}
+				//single-end
+				else {
+					//set fastq file name
+					String path = s.getFastqFilePath();
+					String fastqFileName = new File(path).getName();
+					s.setFastqFileName(fastqFileName);
+				}
+				//parse out "Lab" from lab name string
+				Pattern p = Pattern.compile(".+(?=Lab)");
+				Matcher m = p.matcher(s.getLab());
+				if (m.find()) {
+					s.setLab(m.group());
+				}
+
+				String genome = dataValue[s.genomeIndex];
+				//skip samples without organism or index info
+				if (s.getOrganism().toString().equals("Unknown") || s.getOrganism().toString().equals("Other") || 
+						s.getOrganism().toString().equals(null) || s.getGenome().toString().equals("None") || 
+						s.getGenome().toString().equals(null)) {
+
+					//do not align
+					s.setAlign(false);
+					//continue;
+				}
+				else {
+					s.setGenome(genome);
+					//call downstream methods to match samples with the correct novoindex
+					this.setCondSeqAppCode(s);
+				}
+				//check for matching novoindex for the sample before creating new analysis report 
+				if (!(s.getNovoindex() == null)) {
+					//get new analysis report number for samples that have a matching novoindex
+					analysisNumber = hm.get(s.getRequestNumber());
+					if (analysisNumber == null) {
+
+						//populate with request numbers
+						analysisNumber = this.testGetAnalysisNumber(s);
+						s.setAnalysisNumber(analysisNumber);
+						hm.put(s.getRequestNumber(), analysisNumber);
+					}
+					else if (hm.containsKey(s.getRequestNumber())) {
+						s.setAnalysisNumber(hm.get(s.getRequestNumber()));
+					}
+					// check if sequence adapters are present
+					this.sequencingAdapterState(s);
+				}
+				else {
+					s.setAlign(false);
+					//continue;
+				}
+				//print logs for each sample
+				this.printLogs(s);
+				this.testCreateCmdFile(s);
 			}
 		}
 		//close the reader
@@ -345,13 +467,13 @@ public class Autoaligner {
 		System.out.println(s.getLab());
 		System.out.println(s.getBuildCode());
 		System.out.println(s.getSequenceLaneNumber());
-
+		
 		//feed input params into string array
 		String cmd[] = {"./httpclient_create_analysis.sh", "-properties", "gnomex_httpclient.properties", 
 				"-serverURL", "https://hci-bio-app.hci.utah.edu", "-name", s.getProjectName(), 
 				"-folderName", "novoalignments", "-lab", s.getLab(), "-organism", s.getOrganism(), 
 				"-genomeBuild", s.getBuildCode(), "-analysisType", "Alignment", "-seqLane", s.getSequenceLaneNumber()};
-
+		System.out.println(Arrays.toString(cmd));
 		//launch the script and grab stdin/stdout and stderr
 		Process proc = Runtime.getRuntime().exec(cmd, null, new File(createAnalysisMain));
 
@@ -417,6 +539,24 @@ public class Autoaligner {
 
 		return analysisNum;
 	}
+	
+	public String testGetAnalysisNumber(Sample s) throws IOException {
+		String line;
+		InputStream stdout = null;
+		InputStream stderr = null;
+		String analysisNum = null;
+		String analysisPath = null;
+		
+		System.out.println(s.getProjectName());
+		System.out.println(s.getOrganism());
+		System.out.println(s.getLab());
+		System.out.println(s.getBuildCode());
+		System.out.println(s.getSequenceLaneNumber());
+
+		analysisNum = "A6000";
+		analysisPath = "/scratch/Roane/A6000";
+		return analysisNum;
+	}
 
 	/**
 	 * Sets condensed sequencing application codes for matching sample to appropriate novoindex
@@ -424,6 +564,25 @@ public class Autoaligner {
 	 * @throws Exception 
 	 */
 	public void setCondSeqAppCode(Sample s) throws Exception {
+		
+		String codeLine;
+		HashMap<String,String> hmap = new HashMap<String,String>();
+		try{
+			FileReader temp = new FileReader("/home/sbsuser/Pipeline/ApplicationCodeDetector/new_codes_format.txt");
+			BufferedReader temp2 = new BufferedReader(temp);
+			while ((codeLine = temp2.readLine()) != null) {
+				String[] parts = codeLine.split("\t");
+				hmap.put(parts[0], parts[1]);
+			}
+		} catch (IOException e) {
+			s.setKnownSeqAppCode(false);
+			s.setAlign(false);
+			emailExceptions(s);
+			
+		}
+		
+		String mthd = hmap.get(s.getSequencingApplicationCode().toString());
+		
 
 		//set isPaired flag
 		if (s.getSingleOrPairedEnd().toString().equals("Paired-end")) {
@@ -439,17 +598,43 @@ public class Autoaligner {
 			s.setReverseStrand(false);
 		}
 
+		if (mthd == null) {
+			s.setKnownSeqAppCode(false);
+			emailExceptions(s);
+		}
+		else{
 		//check to see if small RNA, and if so, set the boolean flag
-		if (s.getSequencingApplicationCode().toString().equals("SMRNASEQ") ||
-				s.getSequencingApplicationCode().toString().equals("APP48") ||
-				s.getSequencingApplicationCode().toString().equals("APP78")) {
+		
+			if (mthd.equals("SmallRNA")) {
 			isSmallRNA = true;
 			s.setKnownSeqAppCode(true);
+			mthd = "_MRNASEQ_";
 		}
 		else {
 			isSmallRNA = false;
+		}	
+			
+		if(mthd.equals("unknown")){
+			s.setKnownSeqAppCode(true);
+			s.setSequencingApplication(mthd);
+			emailExceptions(s);
 		}
-
+		else{
+			s.setSequencingApplication(mthd);
+			s.setKnownSeqAppCode(true);
+			s.setKnownMethod(true);
+			
+		}
+		if (mthd.equals("_MRNASEQ_")){
+			s.setRNASeq(true);
+		}
+		if (mthd.equals("_BISSEQ")) {
+			s.setBisSeq(true);
+			s.setAlign(false);
+			emailExceptions(s);
+		}
+		}
+/*
 		//set condensed sequencing application codes 
 		if (s.getSequencingApplicationCode().toString().equals("APP2") || 
 				s.getSequencingApplicationCode().toString().equals("APP3") || 
@@ -539,6 +724,7 @@ public class Autoaligner {
 			s.setAlign(false);
 			emailExceptions(s);
 		}
+*/		
 		if (s.knownSeqAppCode() == true) {
 			parseGenomeIndex(s);
 		}
@@ -571,6 +757,16 @@ public class Autoaligner {
 						"\n\n" + this.autoalignReport.toString()), 
 						"autoalign@nobody.com");
 			} catch (MessagingException e) {
+				e.printStackTrace();
+			}
+		}
+		else if (s.isKnownMethod() == false && s.knownSeqAppCode() == true) {
+			try {
+				this.postMail(myEmail, "seqAppCode data type unknown", ("Hello kind Sir, \n\nAlignments for experiemnt " + s.getRequestNumber().toString()
+				+ " were skipped due to the type of data type associated with the sequencing code: " + s.getSequencingApplicationCode() + " being unknown")
+						,"autoalign@nobody.com");
+			}
+			catch (MessagingException e) {
 				e.printStackTrace();
 			}
 		}
@@ -720,6 +916,41 @@ public class Autoaligner {
 			System.exit(0);
 		}
 	}
+	
+	public void testCreateCmdFile(Sample s) throws IOException {
+		String jobDirPath = jobDir + s.getRequestNumber() + "/" + s.getSampleID();
+		try {
+			//first make sure an index exists before continuing
+			if (!(s.getIndexCode() == null)) {
+				//check to see if job dir exists for requestNum
+				File dir = new File(jobDirPath);
+				//make appropriate new directory and subdirectories
+				dir.mkdirs();
+				//change dir permissions so Pysano can execute 
+				Runtime.getRuntime().exec("chmod 777 " + dir);
+				//create cmd.txt file
+				FileWriter fw = new FileWriter(jobDirPath + "/" + "cmd.txt");
+				BufferedWriter out = new BufferedWriter(fw);
+
+				//make bisAlignWait file for bisulfite sequences
+				if (s.getSequencingApplication().toString().equals("_BISSEQ")) {
+					//make bisAlignWait.txt file that will later be the @align cmd.txt file after file splitting
+					FileWriter bisAlignWait = new FileWriter(jobDirPath + "/" + "bisAlignWait.txt");
+					BufferedWriter bout = new BufferedWriter(bisAlignWait);
+					bout.write(this.getCmdFileMessageBisulfite(s));
+					bout.close();
+				}
+				//write the messages
+				out.write(this.testGetCmdFileMsgGen(s));
+				//close output stream
+				out.close();
+			}
+		}
+		catch (Exception e) {
+			s.setAlign(false);
+			System.exit(0);
+		}
+	}	
 
 	/**
 	 * This method soft links the appropriate input fastq file in Repository 
@@ -755,7 +986,7 @@ public class Autoaligner {
 	 */
 	public String getCmdFileMsgGen(Sample s) throws IOException, InterruptedException {
 		//set string for first non-variable part of cmd.txt params
-		String msg = "#e " + myEmail + "\n#a " + s.getAnalysisNumber() + "\n## Novoalignments of " 
+		String msg = "#e " + myEmail.split(",")[0] + "\n#a " + s.getAnalysisNumber() + "\n## Novoalignments of " 
 				+ s.getRequestNumber() + " " + s.getProjectName() + "\n## Aligning to " 
 				+ s.getBuildCode() + " for " + s.getRequester() + " in the " + s.getLab() + "Lab "
 				+ "\n\nfastqc *.gz --noextract" + "\n\n@align -novoalign ";
@@ -765,7 +996,7 @@ public class Autoaligner {
 
 		//command string for splitting bisulfite files and preparing dirs for alignment
 		//splits into files with 2 million reads, which with our current hardware at CHPC, takes ~1 hr to align/file
-		String bisulfiteMsg = "#e " + myEmail + " -ef" + "\n#a " + s.getAnalysisNumber() + "\n## Splitting bisulfite fastq files of " 
+		String bisulfiteMsg = "#e " + myEmail.split(",")[0] + " -ef" + "\n#a " + s.getAnalysisNumber() + "\n## Splitting bisulfite fastq files of " 
 				+ s.getRequestNumber() + " " + s.getProjectName() + " for " + s.getRequester() + " in the "
 				+ s.getLab() + "Lab " + "\n\nfastqc " + s.getSampleID() + "*.gz" + " --noextract" 
 				+ "\n\nFileSplitter.jar" + " -f " + s.getSampleID() + "*_1.txt.gz" + " -n 8000000 " + "-g"
@@ -821,6 +1052,75 @@ public class Autoaligner {
 		return sb.toString();
 	}
 
+	public String testGetCmdFileMsgGen(Sample s) throws IOException, InterruptedException {
+		//set string for first non-variable part of cmd.txt params
+		String msg = "#e " + myEmail.split(",")[0] + "\n#a " + s.getAnalysisNumber() + "\n## Novoalignments of " 
+				+ s.getRequestNumber() + " " + s.getProjectName() + "\n## Aligning to " 
+				+ s.getBuildCode() + " for " + s.getRequester() + " in the " + s.getLab() + "Lab "
+				+ "\n\nfastqc *.gz --noextract" + "\n\n@align -novoalign ";
+		//set string for first non-variable part of cmd.txt params
+		String msg2 = " -g " + s.getNovoindex() + " -i *.gz" + " -gzip\n\n";
+		String msg3 = "SamTranscriptomeParser.jar -f *sam.gz\n";
+
+		//command string for splitting bisulfite files and preparing dirs for alignment
+		//splits into files with 2 million reads, which with our current hardware at CHPC, takes ~1 hr to align/file
+		String bisulfiteMsg = "#e " + myEmail.split(",")[0] + " -ef" + "\n#a " + s.getAnalysisNumber() + "\n## Splitting bisulfite fastq files of " 
+				+ s.getRequestNumber() + " " + s.getProjectName() + " for " + s.getRequester() + " in the "
+				+ s.getLab() + "Lab " + "\n\nfastqc " + s.getSampleID() + "*.gz" + " --noextract" 
+				+ "\n\nFileSplitter.jar" + " -f " + s.getSampleID() + "*_1.txt.gz" + " -n 8000000 " + "-g"
+				+ "\n\nFileSplitter.jar" + " -f " + s.getSampleID() + "*_2.txt.gz" + " -n 8000000 " + "-g\n";
+				//uncomment this below to have Autoaligner initiate alignments for each split pair of fastq files
+				//+ "\n\nfor i in *_" + s.getSampleID() + "*_1.txt.gz; do o=${i%*_1.txt.gz}; n=${i%_" + s.getSampleID() + "*}; mkdir $n; " 
+				//+ "mv ${o}* $n; cp bisAlignWait.txt $n; mv $n/bisAlignWait.txt $n/cmd.txt; touch $n/b; done\n";
+
+		//instantiate new StringBuffer object for holding cmd.txt file's body
+		StringBuffer sb = new StringBuffer();
+
+		//don't generate cmd.txt file if appropriate novoindex isn't available
+		if (!(s.getIndexCode() == null)) {
+			//is it be bisulfite? 
+			if (s.getSequencingApplication().equalsIgnoreCase("_BISSEQ")) {
+				//get the bisulfite alignment params
+				sb.append(bisulfiteMsg);
+				//sb.append(this.getCmdFileMessageBisulfite(s));
+			}
+			//all right then, how about small RNA?
+			else if (s.getSequencingApplication().equalsIgnoreCase("_MRNASEQ_") && 
+					(isSmallRNA == true)) {
+				//build the cmd.txt contents
+				sb.append(msg);
+				sb.append(this.getCmdFileMessageSmallRNA(s));
+				sb.append(msg2);
+				sb.append(msg3);
+			}
+			//hmmm, could it be regular mRNA or RNA?
+			else if (s.getSequencingApplication().equalsIgnoreCase("_MRNASEQ_") && 
+					(isSmallRNA == false)) {
+				sb.append(msg);
+				sb.append(this.getCmdFileMessageStdParams(s));
+				sb.append(msg2);
+				sb.append(msg3);
+			}
+			//ok then, it's got to be genomic DNA, mononucleosome or ChIP-Seq
+			else if (s.getSequencingApplication().equalsIgnoreCase("_DNASEQ")) {
+				sb.append(msg);
+				sb.append(this.getCmdFileMessageGenomic(s));
+				sb.append(msg2);
+			}
+			//nope, it's something freaky that isn't currently supported in Autoaligner 
+			else {
+				s.setAlign(false);
+			}
+		}
+		//soft link input files
+		String dirPath = "/Repository/MicroarrayData/" + s.getRequestYear() + "/" + s.getRequestNumber() + "/Fastq/"; 
+		this.softLinkFiles(s, dirPath);
+		String jobDirPath = jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/";
+		System.out.println(jobDirPath);
+
+		return sb.toString();
+	}
+
 	/**
 	 * Exome, genomic DNA, mononucleosome, ChIP alignment params
 	 * @param s
@@ -844,7 +1144,7 @@ public class Autoaligner {
 	 * @return
 	 */
 	public String getCmdFileMessageBisulfite(Sample s) {
-		s.setParams("#e " + myEmail + "\n#a " + s.getAnalysisNumber() + "\n## Bisulfite novoalignments of " + 
+		s.setParams("#e " + myEmail.split(",")[0] + "\n#a " + s.getAnalysisNumber() + "\n## Bisulfite novoalignments of " + 
 				s.getRequestNumber() + " " + s.getProjectName() + "\n## Aligning to " + s.getBuildCode() +
 				" for " + s.getRequester() + " in the " + s.getLab() + "Lab " + "\n\n@align -novoalign " +
 				"[-o SAM -r Random -t 240 -h 120 -b 2] -i *_" + s.getSampleID() + "_*.txt.gz -g " 
@@ -908,16 +1208,16 @@ public class Autoaligner {
 		if (s.toAlign() == true) {
 			String jobDirPath = jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/";
 			//call pstart command to start the jobs
-			//File f = new File(jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/" + "pstart "
-			//+ jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/");
+			File f = new File(jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/" + "pstart "
+			+ jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/");
 			try {
-				//f.createNewFile();
+				f.createNewFile();
 				System.out.println(jobDirPath);
 				Runtime.getRuntime().exec("pstart " + jobDirPath);
 				
-			}
+			} 
 			catch (IOException ioe) {
-				System.out.println("YO, your code failed");
+			System.out.println("YO, your code failed");
 				s.setAlign(false);
 			}
 			
@@ -975,6 +1275,7 @@ public class Autoaligner {
 					switch (test) {
 					case 'f': autoalignReport = new String(args[++i]); break; 
 					case 'c': configFile = new File(args[++i]); break;
+					case 't' : testCase = true; break;
 					default: Misc.printErrAndExit("Problem--unknown option used: " + mat.group() 
 							+ "\nUsage: java -jar Autoaligner.jar -f autoalign_2013-01-01.txt "
 							+ "-c configFile.txt");
@@ -1031,6 +1332,7 @@ public class Autoaligner {
 			this.jobDir = this.checkExistance("tomatoJobDir", hm);
 			this.logDir = this.checkExistance("logDir", hm);
 			this.createAnalysisMain = this.checkExistance("createAnalysisMain", hm);
+			this.myEmail = this.checkExistance("email", hm);
 			
 			br.close();
 
@@ -1061,6 +1363,7 @@ public class Autoaligner {
 				"\nParameters:\n\n" +
 				"-f filename for autoalign report to process\n" +
 				"-c config file with run parameters\n" +
+				"-t to run in test mode. pstart will not be executed and a fake gnomex analysis number is given\n" +
 				"\nUsage:\n" +
 				"java -jar pathTo/Autoaligner.jar -f autoalign_2015-01-01.txt -c configFile.txt\n" +
 				"**************************************************************************************\n");
