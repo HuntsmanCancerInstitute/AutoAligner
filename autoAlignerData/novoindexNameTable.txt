@@ -41,3 +41,6 @@ zv9_DNASEQ	zv9AllStdChrLambPhiAdaptr
 zv9_MRNASEQ_36	zv9EnsTransRad32Num100kMin10SplicesChrPhiXAdaptr
 zv9_MRNASEQ_50	zv9EnsTransRad46Num100kMin10SplicesChrPhiXAdaptrRNASpikes_eGFP_mCherry.01-09-15
 zv9_MRNASEQ_125	zv9EnsTransRad121Num10kMin10SplicesChrPhiXAdaptrNoOddChroms.01-13-15
+zv10_MRNASEQ_50 zv10EnsGeneAllStdChrRad46Num100kMin10Splices
+zv10_MRNASEQ_125        zv10EnsGeneAllStdChrRad121Num10kMin10Splices
+
