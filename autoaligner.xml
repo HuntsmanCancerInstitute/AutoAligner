@@ -11,6 +11,13 @@
 	
 	<target name="master-jar" description="creates the master jar file with all code" depends="clean">
 		<!-- Copy Driver -->
+		<mkdir dir="${release.build.dir}"/>
+		<javac srcdir="${src.dir}" destdir="${classes.dir}" encoding="ISO-8859-1" debug="true">
+					<classpath>
+						<fileset dir="${release.build.dir}" includes="**/*jar"/>
+						<fileset dir="ExternalJars" includes="*jar"/>
+					</classpath>
+				</javac>
 		<macrodef name="copy-class">
 			<attribute name="jarpath"/>
 			<sequential>
