@@ -269,6 +269,7 @@ public class Autoaligner {
 
 					//do not align
 					s.setAlign(false);
+					logFile.writeWarningMessage("Don't Recogize Organism " + s.getOrganism().toString() + " " + s.getGenome().toString());
 					//continue;
 				}
 				else {
@@ -295,6 +296,7 @@ public class Autoaligner {
 				}
 				else {
 					s.setAlign(false);
+					logFile.writeWarningMessage("Can't find novoindex " + s.getOrganism().toString() + " " + s.getGenome().toString());
 					//continue;
 				}
 				//print logs for each sample
@@ -383,6 +385,7 @@ public class Autoaligner {
 
 					//do not align
 					s.setAlign(false);
+					logFile.writeWarningMessage("Don't Recogize Organism " + s.getOrganism().toString() + " " + s.getGenome().toString());
 					//continue;
 				}
 				else {
@@ -409,6 +412,7 @@ public class Autoaligner {
 				}
 				else {
 					s.setAlign(false);
+					logFile.writeWarningMessage("Can't find novoindex " + s.getOrganism().toString() + " " + s.getGenome().toString());
 					//continue;
 				}
 				//print logs for each sample
@@ -792,6 +796,7 @@ public class Autoaligner {
 				s.setBuildCode(m.group().toLowerCase());
 			}
 			else {
+				logFile.writeWarningMessage("Can't parse build code " + s.getGenome());
 				s.setAlign(false);
 			}
 			//parse versioned genome from genome string
@@ -802,6 +807,7 @@ public class Autoaligner {
 			}
 			//missing versioned genome?
 			else {
+				logFile.writeWarningMessage("Can't parse versioned genoe " + s.getVersionedGenome());
 				s.setAlign(false);
 			}
 		}
@@ -835,6 +841,7 @@ public class Autoaligner {
 				}
 				//missing index
 				else {
+					logFile.writeWarningMessage("Can't find appropriate novoindex: " + key);
 					s.setAlign(false);
 					s.setHasNovoindex(false);
 				}
@@ -851,6 +858,7 @@ public class Autoaligner {
 				}
 				//missing novoindex
 				else {
+					logFile.writeWarningMessage("Can't find appropriate novoindex: " + key);
 					s.setAlign(false);
 					s.setHasNovoindex(false);
 				}
@@ -865,6 +873,7 @@ public class Autoaligner {
 					s.setAlign(false);
 				}
 				else {
+					logFile.writeWarningMessage("Can't find appropriate novoindex: " + key);
 					s.setAlign(false);
 					s.setHasNovoindex(false);
 				}
@@ -1160,7 +1169,7 @@ public class Autoaligner {
 	public String getCmdFileMessageSmallRNA(Sample s) {
 		//includes 3' adapter stripping prior to alignment
 		//***this is NOT the standard Illumina Gex Adapter 2 used as default by novoalign
-		s.setParams("[-o SAM -r All 50 -m -a " + s.getRead1Adapter() + " -l 18 -h 60]");
+		s.setParams("[-o SAM -r All 50 -m -a " + s.getRead1Adapter() + " -l 15 -h 60]");
 		return s.getParams();
 	}
 
@@ -1208,19 +1217,18 @@ public class Autoaligner {
 		if (s.toAlign() == true) {
 			String jobDirPath = jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/";
 			//call pstart command to start the jobs
-			File f = new File(jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/" + "pstart "
-			+ jobDir + s.getRequestNumber() + "/" + s.getSampleID() + "/");
+			
 			try {
-				f.createNewFile();
+				
 				System.out.println(jobDirPath);
 				Runtime.getRuntime().exec("pstart " + jobDirPath);
 				
 			} 
 			catch (IOException ioe) {
-			System.out.println("YO, your code failed");
+				System.out.println("YO, your code failed");
 				s.setAlign(false);
 			}
-			
+			System.out.println(jobDirPath);
 		}
 	}
 
